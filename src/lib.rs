@@ -8,9 +8,9 @@ mod client;
 pub mod errors;
 pub mod config;
 pub mod api;
-mod rest_model;
-mod util;
-mod market;
+pub mod rest_model;
+pub mod util;
+pub mod market;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
