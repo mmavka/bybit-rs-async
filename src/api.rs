@@ -1,28 +1,16 @@
+use crate::Category;
 use crate::client::Client;
 use crate::config::Config;
 use crate::market::Market;
 
 pub trait Bybit: Sized {
-    fn new(api_key: Option<String>, secret_key: Option<String>) -> Self {
-        Self::new_with_config(api_key, secret_key, &Config::default())
-    }
-
-    /// Create a binance API using environment variables for credentials
-    /// BYBIT_API_KEY=$YOUR_API_KEY
-    /// BYBIT_API_SECRET_KEY=$YOUR_SECRET_KEY
-    fn new_with_env(config: &Config) -> Self {
-        let api_key = std::env::var("BYBIT_API_KEY").ok();
-        let secret = std::env::var("BYBIT_API_SECRET_KEY").ok();
-        Self::new_with_config(api_key, secret, config)
-    }
-
-    fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
+    fn spot(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
 }
 
 impl Bybit for Market {
-    fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
+    fn spot(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
         Market {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout, Category::Spot),
             recv_window: config.recv_window,
         }
     }

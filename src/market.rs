@@ -28,10 +28,12 @@ pub struct Market {
 
 // Market Data endpoints
 impl Market {
-    pub async fn get_server_time(&self) -> Result<ResponseBybit<ServerTime>> { self.client.get(API_V5_SERVER_TIME, None).await }
+    pub async fn get_server_time(&self) -> Result<ResponseBybit<ServerTime>> {
+        self.client.get(API_V5_SERVER_TIME, None).await
+    }
 
     pub async fn get_instruments_info(&self) -> Result<ResponseBybit<InstrumentsInfo>> {
-        self.client.get(API_V5_INSTRUMENTS_INFO, None).await
+        self.client.get_category(API_V5_INSTRUMENTS_INFO, None).await
     }
 
     fn symbol_request<S>(&self, symbol: S) -> String

@@ -12,17 +12,10 @@ pub mod rest_model;
 pub mod util;
 pub mod market;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[derive(Clone)]
+pub enum Category {
+    Spot,
+    Linear,
+    Inverse,
+    Option
 }

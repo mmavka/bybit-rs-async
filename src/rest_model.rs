@@ -1,3 +1,4 @@
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseBybit<T> {
@@ -82,6 +83,9 @@ pub struct LotSizeFilter {
     #[serde(with = "string_or_float")]
     pub post_only_max_order_qty: f64,
 }
+
+///////////////////////////////////////////////////////////////////
+
 
 ///////////////////////////////////////////////////////////////////
 

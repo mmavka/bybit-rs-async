@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::time::Duration;
 
 use boolinator::Boolinator;
@@ -8,9 +9,16 @@ use reqwest::StatusCode;
 use ring::hmac;
 use serde::de;
 use serde::de::DeserializeOwned;
+use crate::Category;
 
 use crate::errors::{BybitContentError, Error, error_messages, Result};
 use crate::util::{build_request_p, build_signed_request_p};
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CategoryQuery {
+    category: String,
+}
 
 #[derive(Clone)]
 pub struct Client {
@@ -18,10 +26,11 @@ pub struct Client {
     secret_key: String,
     inner: reqwest::Client,
     host: String,
+    category: Category
 }
 
 impl Client {
-    pub fn new(api_key: Option<String>, secret_key: Option<String>, host: String, timeout: Option<u64>) -> Self {
+    pub fn new(api_key: Option<String>, secret_key: Option<String>, host: String, timeout: Option<u64>, category: Category) -> Self {
         let mut builder: reqwest::ClientBuilder = reqwest::ClientBuilder::new();
         if let Some(timeout_secs) = timeout {
             builder = builder.timeout(Duration::from_secs(timeout_secs))
@@ -32,7 +41,15 @@ impl Client {
             secret_key: secret_key.unwrap_or_else(|| "".into()),
             inner: builder.build().unwrap(),
             host,
+            category,
         }
+    }
+
+    pub async fn get_category<T: DeserializeOwned>(&self, endpoint: &str, request: Option<&str>) -> Result<T> {
+        let url = self.category_query(endpoint, request);
+        let response = self.inner.get(&url).headers(self.build_headers(true)?).send().await?;
+
+        self.handler(response).await
     }
 
     pub async fn get_signed<T: DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
@@ -167,6 +184,20 @@ impl Client {
         self.handler(response).await
     }
 
+    fn category_query(&self, endpoint: &str, request: Option<&str>) -> String {
+        let category = match self.category {
+            Category::Spot => String::from("spot"),
+            Category::Linear => String::from("linear"),
+            Category::Inverse => String::from("inverse"),
+            Category::Option => String::from("option"),
+        };
+        let url = request
+            .map(|r| format!("{}{}?{}&category={}", self.host, endpoint, r, category))
+            .unwrap_or_else(|| format!("{}{}?category={}", self.host, endpoint, category));
+
+        url
+    }
+
     // Request must be signed
     fn sign_request(&self, endpoint: &str, request: &str) -> String {
         let signed_key = hmac::Key::new(hmac::HMAC_SHA256, self.secret_key.as_bytes());
@@ -179,7 +210,7 @@ impl Client {
     fn build_headers(&self, content_type: bool) -> Result<HeaderMap> {
         let header = IntoIterator::into_iter([
             // Always include user agent
-            Some((USER_AGENT, HeaderValue::from_static("binance-rs"))),
+            Some((USER_AGENT, HeaderValue::from_static("bybit-rs-async"))),
             // Always include API key
             Some((
                 HeaderName::from_static("x-mbx-apikey"),
