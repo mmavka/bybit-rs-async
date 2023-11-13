@@ -10,6 +10,7 @@ use serde::de;
 use serde::de::DeserializeOwned;
 
 use crate::errors::{BybitContentError, Error, error_messages, Result};
+use crate::util::{build_request_p, build_signed_request_p};
 
 #[derive(Clone)]
 pub struct Client {
@@ -34,6 +35,70 @@ impl Client {
         }
     }
 
+    pub async fn get_signed<T: DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
+        let url = self.sign_request(endpoint, request);
+        let response = self.inner.get(&url).headers(self.build_headers(true)?).send().await?;
+
+        self.handler(response).await
+    }
+
+    pub async fn get_signed_d<T: de::DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
+        self.get_signed(endpoint, request).await
+    }
+
+    pub async fn get_signed_p<T: de::DeserializeOwned, P: serde::Serialize>(
+        &self,
+        endpoint: &str,
+        payload: Option<P>,
+        recv_window: u64,
+    ) -> Result<T> {
+        let req = build_signed_request_p(payload, recv_window)?;
+        self.get_signed(endpoint, &req).await
+    }
+
+    pub async fn post_signed<T: DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
+        let url = self.sign_request(endpoint, request);
+        let response = self.inner.post(&url).headers(self.build_headers(true)?).send().await?;
+
+        self.handler(response).await
+    }
+
+    pub async fn post_signed_d<T: de::DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
+        self.post_signed(endpoint, request).await
+    }
+
+    pub async fn post_signed_p<T: de::DeserializeOwned, P: serde::Serialize>(
+        &self,
+        endpoint: &str,
+        payload: P,
+        recv_window: u64,
+    ) -> Result<T> {
+        let request = build_signed_request_p(payload, recv_window)?;
+        self.post_signed(endpoint, &request).await
+    }
+
+    pub async fn delete_signed_p<T: de::DeserializeOwned, P: serde::Serialize>(
+        &self,
+        endpoint: &str,
+        payload: P,
+        recv_window: u64,
+    ) -> Result<T> {
+        let request = build_signed_request_p(payload, recv_window)?;
+        self.delete_signed(endpoint, &request).await
+    }
+
+    pub async fn delete_signed<T: DeserializeOwned>(&self, endpoint: &str, request: &str) -> Result<T> {
+        let url = self.sign_request(endpoint, request);
+        let response = self
+            .inner
+            .delete(&url)
+            .headers(self.build_headers(true)?)
+            .send()
+            .await?;
+
+        self.handler(response).await
+    }
+
     pub async fn get<T: DeserializeOwned>(&self, endpoint: &str, request: Option<&str>) -> Result<T> {
         let url = request
             .map(|r| format!("{}{}?{}", self.host, endpoint, r))
@@ -44,7 +109,97 @@ impl Client {
         self.handler(response).await
     }
 
-    async fn handler<T: de::DeserializeOwned>(&self, response: Response) -> Result<T> {
+    pub async fn get_p<T: DeserializeOwned>(&self, endpoint: &str, request: Option<&str>) -> Result<T> {
+        self.get(endpoint, request).await
+    }
+
+    pub async fn get_d<T: DeserializeOwned, S: serde::Serialize>(
+        &self,
+        endpoint: &str,
+        payload: Option<S>,
+    ) -> Result<T> {
+        let req = if let Some(p) = payload {
+            Some(build_request_p(p)?)
+        } else {
+            None
+        };
+        self.get_p(endpoint, req.as_deref()).await
+    }
+
+    pub async fn post<T: DeserializeOwned>(&self, endpoint: &str, symbol: Option<&str>) -> Result<T> {
+        let url = symbol
+            .map(|s| format!("{}{}?symbol={}", self.host, endpoint, s))
+            .unwrap_or_else(|| format!("{}{}", self.host, endpoint));
+
+        let response = self.inner.post(url).headers(self.build_headers(false)?).send().await?;
+
+        self.handler(response).await
+    }
+
+    pub async fn put<T: DeserializeOwned>(&self, endpoint: &str, listen_key: &str, symbol: Option<&str>) -> Result<T> {
+        let data = symbol
+            .map(|s| format!("listenKey={listen_key}&symbol={s}"))
+            .unwrap_or_else(|| format!("listenKey={listen_key}"));
+        let headers = self.build_headers(false)?;
+        let url = format!("{}{}?{}", self.host, endpoint, data);
+        let response = self.inner.put(&url).headers(headers).send().await?;
+
+        self.handler(response).await
+    }
+
+    pub async fn delete<T: DeserializeOwned>(
+        &self,
+        endpoint: &str,
+        listen_key: &str,
+        symbol: Option<&str>,
+    ) -> Result<T> {
+        let data = symbol
+            .map(|s| format!("listenKey={listen_key}&symbol={s}"))
+            .unwrap_or_else(|| format!("listenKey={listen_key}"));
+        let url = format!("{}{}?{}", self.host, endpoint, data);
+        let response = self
+            .inner
+            .delete(url)
+            .headers(self.build_headers(false)?)
+            .send()
+            .await?;
+
+        self.handler(response).await
+    }
+
+    // Request must be signed
+    fn sign_request(&self, endpoint: &str, request: &str) -> String {
+        let signed_key = hmac::Key::new(hmac::HMAC_SHA256, self.secret_key.as_bytes());
+        let signature = hex_encode(hmac::sign(&signed_key, request.as_bytes()).as_ref());
+        let url = format!("{}{}?{}&signature={}", self.host, endpoint, request, signature);
+
+        url
+    }
+
+    fn build_headers(&self, content_type: bool) -> Result<HeaderMap> {
+        let header = IntoIterator::into_iter([
+            // Always include user agent
+            Some((USER_AGENT, HeaderValue::from_static("binance-rs"))),
+            // Always include API key
+            Some((
+                HeaderName::from_static("x-mbx-apikey"),
+                HeaderValue::from_str(&self.api_key)?,
+            )),
+            // Include content type if needed
+            content_type.as_option().map(|_| {
+                (
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-www-form-urlencoded"),
+                )
+            }),
+        ])
+            .flatten()
+            .collect();
+
+        Ok(header)
+    }
+
+    async fn handler<T: DeserializeOwned>(&self, response: Response) -> Result<T> {
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
             StatusCode::INTERNAL_SERVER_ERROR => Err(Error::InternalServerError),

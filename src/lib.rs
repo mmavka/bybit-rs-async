@@ -4,12 +4,13 @@ extern crate lazy_static;
 extern crate serde;
 extern crate serde_qs as qs;
 
-pub mod general;
 mod client;
 pub mod errors;
 pub mod config;
 pub mod api;
 mod rest_model;
+mod util;
+mod market;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

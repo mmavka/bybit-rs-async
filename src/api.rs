@@ -1,6 +1,6 @@
 use crate::client::Client;
 use crate::config::Config;
-use crate::general::General;
+use crate::market::Market;
 
 pub trait Bybit: Sized {
     fn new(api_key: Option<String>, secret_key: Option<String>) -> Self {
@@ -19,10 +19,11 @@ pub trait Bybit: Sized {
     fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
 }
 
-impl Bybit for General {
-    fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> General {
-        General {
+impl Bybit for Market {
+    fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
+        Market {
             client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout),
+            recv_window: config.recv_window,
         }
     }
 }
@@ -46,14 +47,6 @@ impl Bybit for General {
 //     }
 // }
 
-// impl Bybit for Market {
-//     fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
-//         Market {
-//             client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout),
-//             recv_window: config.recv_window,
-//         }
-//     }
-// }
 //
 // impl Bybit for UserStream {
 //     fn new_with_config(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> UserStream {
