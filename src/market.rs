@@ -1,7 +1,7 @@
 use crate::client::*;
 use crate::errors::*;
 use crate::util::*;
-use crate::rest_model::{InstrumentsInfo, ResponseBybit, ServerTime};
+use crate::rest_model::{SymbolLinear, InstrumentsInfoLinear, ResponseBybit, ServerTime};
 
 static API_V5_SERVER_TIME: &str = "/v5/market/time";
 static API_V5_KLINES: &str = "/v5/market/kline";
@@ -32,7 +32,7 @@ impl Market {
         self.client.get(API_V5_SERVER_TIME, None).await
     }
 
-    pub async fn get_instruments_info(&self) -> Result<ResponseBybit<InstrumentsInfo>> {
+    pub async fn get_instruments_info(&self) -> Result<ResponseBybit<InstrumentsInfoLinear<SymbolLinear>>> {
         self.client.get_category(API_V5_INSTRUMENTS_INFO, None).await
     }
 

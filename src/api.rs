@@ -5,12 +5,33 @@ use crate::market::Market;
 
 pub trait Bybit: Sized {
     fn spot(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
+    fn linear(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
+    fn inverse(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
+    fn option(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Self;
 }
 
 impl Bybit for Market {
     fn spot(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
         Market {
             client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout, Category::Spot),
+            recv_window: config.recv_window,
+        }
+    }
+    fn linear(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
+        Market {
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout, Category::Linear),
+            recv_window: config.recv_window,
+        }
+    }
+    fn inverse(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
+        Market {
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout, Category::Inverse),
+            recv_window: config.recv_window,
+        }
+    }
+    fn option(api_key: Option<String>, secret_key: Option<String>, config: &Config) -> Market {
+        Market {
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone(), config.timeout, Category::Option),
             recv_window: config.recv_window,
         }
     }

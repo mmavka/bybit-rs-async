@@ -23,15 +23,15 @@ pub struct RetExtInfo {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct InstrumentsInfo {
+pub struct InstrumentsInfoLinear<T> {
     pub category: String,
-    pub list: Vec<InstrumentInfoSymbol>,
-    pub next_page_cursor: String,
+    pub list: Vec<T>,
+    pub next_page_cursor: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct InstrumentInfoSymbol {
+pub struct SymbolLinear {
     pub symbol: String,
     pub contract_type: String,
     pub status: String,
