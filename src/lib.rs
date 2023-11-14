@@ -11,7 +11,7 @@ pub mod api;
 pub mod util;
 pub mod spot;
 pub mod linear;
-mod general;
+pub mod general;
 
 static API_V5_SERVER_TIME: &str = "/v5/market/time";
 static API_V5_KLINES: &str = "/v5/market/kline";
