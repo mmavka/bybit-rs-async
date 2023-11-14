@@ -1,16 +1,15 @@
-use std::fmt::format;
 use std::time::Duration;
 
 use boolinator::Boolinator;
 use hex::encode as hex_encode;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, USER_AGENT};
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, USER_AGENT};
 use reqwest::Response;
 use reqwest::StatusCode;
 use ring::hmac;
 use serde::de;
 use serde::de::DeserializeOwned;
-use crate::Category;
 
+use crate::Category;
 use crate::errors::{BybitContentError, Error, error_messages, Result};
 use crate::util::{build_request_p, build_signed_request_p};
 
@@ -26,11 +25,11 @@ pub struct Client {
     secret_key: String,
     inner: reqwest::Client,
     host: String,
-    category: Category
+    category: Option<Category>,
 }
 
 impl Client {
-    pub fn new(api_key: Option<String>, secret_key: Option<String>, host: String, timeout: Option<u64>, category: Category) -> Self {
+    pub fn new(api_key: Option<String>, secret_key: Option<String>, host: String, timeout: Option<u64>, category: Option<Category>) -> Self {
         let mut builder: reqwest::ClientBuilder = reqwest::ClientBuilder::new();
         if let Some(timeout_secs) = timeout {
             builder = builder.timeout(Duration::from_secs(timeout_secs))
@@ -185,18 +184,43 @@ impl Client {
     }
 
     fn category_query(&self, endpoint: &str, request: Option<&str>) -> String {
-        let category = match self.category {
-            Category::Spot => String::from("spot"),
-            Category::Linear => String::from("linear"),
-            Category::Inverse => String::from("inverse"),
-            Category::Option => String::from("option"),
+        let url = match &self.category {
+            Some(c) => {
+                let cat = match c {
+                    Category::Spot => String::from("spot"),
+                    Category::Linear => String::from("linear"),
+                    Category::Inverse => String::from("inverse"),
+                    Category::Option => String::from("option"),
+                };
+                request
+                    .map(|r| format!("{}{}?{}&category={}", self.host, endpoint, r, cat))
+                    .unwrap_or_else(|| format!("{}{}?category={}", self.host, endpoint, cat))
+            }
+            None => {
+                request
+                    .map(|r| format!("{}{}?{}", self.host, endpoint, r))
+                    .unwrap_or_else(|| format!("{}{}", self.host, endpoint))
+            }
         };
-        let url = request
-            .map(|r| format!("{}{}?{}&category={}", self.host, endpoint, r, category))
-            .unwrap_or_else(|| format!("{}{}?category={}", self.host, endpoint, category));
 
         url
     }
+
+    // fn category_query(&self, endpoint: &str, request: Option<&str>) -> String {
+    //     let category = self.category.map(|c| {
+    //         match c {
+    //             Category::Linear => "linear",
+    //             Category::Inverse => "inverse",
+    //             Category::Option => "option",
+    //             Category::Spot => "spot",
+    //         }
+    //     }).unwrap_or_else(|| "");
+    //     let url = request
+    //         .map(|r| format!("{}{}?{}&category={}", self.host, endpoint, r, category))
+    //         .unwrap_or_else(|| format!("{}{}?category={}", self.host, endpoint, category));
+    //
+    //     url
+    // }
 
     // Request must be signed
     fn sign_request(&self, endpoint: &str, request: &str) -> String {
